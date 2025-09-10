@@ -37,24 +37,17 @@ PRINT2:
 .endif
         beq     L29F5
         cmp     #','
-; Pre-KIM had no CLC. KIM added the CLC
-; here. Post-KIM moved the CLC up...
-; (makes no sense on KIM, liveness = 0)
-.if .def(CONFIG_11A) && (!.def(CONFIG_2))
-        clc
-.endif
+; Instead of relying on a prior CLC here (which might be clobbered by
+; JSRs called before the arithmetic), ensure CLC is performed immediately
+; before the ADC that depends on it.
         beq     L29DE
-        cmp     #$3B
-        beq     L2A0D
-        jsr     FRMEVL
-        bit     VALTYP
-        bmi     PRSTRING
-        jsr     FOUT
-        jsr     STRLIT
+
 .ifndef CONFIG_NO_CR
         ldy     #$00
         lda     (FAC_LAST-1),y
-        clc
+        ; Explicitly clear carry right before ADC that uses POSX.
+        ; This makes the code robust even if called routines have modified flags.
+        clc         ; <<-- move/ensure CLC here
         adc     POSX
   .ifdef KBD
         cmp     #$28
